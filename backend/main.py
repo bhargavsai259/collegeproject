@@ -1,11 +1,8 @@
 from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import JSONResponse
-import json
 from PIL import Image
 import io
-import numpy as np
 from colorthief import ColorThief
-import random
 from ultralytics import YOLO
 from transformers import CLIPProcessor, CLIPModel
 
@@ -65,9 +62,6 @@ def detect_furniture_objects(image_bytes, breadth, length):
         print(f"Error detecting furniture: {e}")
         return [{"type": "chair", "position": [2.0, 1.0]}]
 
-# Mock furniture types
-FURNITURE_TYPES = ["chair", "sofa", "table", "bed", "fridge", "cabinet"]
-
 def extract_dominant_colors(image_bytes, num_colors=2):
     """Extract dominant colors from image."""
     try:
@@ -95,10 +89,6 @@ def estimate_dimensions(image_bytes):
         print(f"Error estimating dimensions: {e}")
         return {"breadth": 5.0, "length": 4.0}  # Default
 
-def detect_furniture(room_type, image_bytes, breadth, length):
-    """Detect furniture using AI model."""
-    return detect_furniture_objects(image_bytes, breadth, length)
-
 async def process_image(file: UploadFile, room_no: int):
     """Process a single image to extract room data."""
     image_bytes = await file.read()
@@ -116,7 +106,7 @@ async def process_image(file: UploadFile, room_no: int):
     if room_type == "outdoor":
         furniture = []  # No furniture for outdoor
     else:
-        furniture = detect_furniture(room_type, image_bytes, dimensions["breadth"], dimensions["length"])
+        furniture = detect_furniture_objects(image_bytes, dimensions["breadth"], dimensions["length"])
     
     # Position: side by side
     position = [float(room_no * (dimensions["breadth"] + 1)), 0.0]  # Offset by breadth + gap
