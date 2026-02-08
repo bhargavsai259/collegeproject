@@ -15,7 +15,7 @@ function App() {
           <Link to="/upload" style={{ marginRight: 12 }}>Upload</Link>
           <Link to="/3dview" style={{ marginRight: 12 }}>3D View</Link>
           <Link to="/">Home</Link>
-        </nav>
+        </nav>  
         <Routes>
           <Route path="/upload" element={<UploadPage />} />
           <Route path="/3dview" element={<ThreeDViewRoute />} />

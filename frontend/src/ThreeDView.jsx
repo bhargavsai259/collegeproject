@@ -54,7 +54,7 @@ export default function ThreeDView({ rooms }) {
 
       // Add furniture (simple spheres/cubes)
       room.furniture.forEach(item => {
-        const fGeometry = new THREE.SphereGeometry(10, 16, 16);
+        const fGeometry = new THREE.BoxGeometry(20, 20, 20);
         const fMaterial = new THREE.MeshPhongMaterial({ color: 0x888888 });
         const fMesh = new THREE.Mesh(fGeometry, fMaterial);
         fMesh.position.set(item.position[0] + room.position[0], 10, item.position[1] + room.position[1]);
