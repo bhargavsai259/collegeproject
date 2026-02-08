@@ -10,6 +10,7 @@ torchvision
 transformers
 timm
 colorthief
+ultralytics
 midas
 segment-anything
 yolov5

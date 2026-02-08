@@ -6,63 +6,64 @@ import io
 import numpy as np
 from colorthief import ColorThief
 import random
-import torch
-from torchvision.models.detection import fasterrcnn_resnet50_fpn
-from torchvision.transforms import functional as F
+from ultralytics import YOLO
+from transformers import CLIPProcessor, CLIPModel
 
 app = FastAPI(title="Roomify Backend API", description="API for processing room images into 3D scene data")
 
-# Load pre-trained object detection model
-model = fasterrcnn_resnet50_fpn(pretrained=True)
-model.eval()
+# Load YOLOv8 model for object detection
+model = YOLO('yolov8n.pt')  # Nano model, lightweight
 
-# COCO class names (subset for furniture)
-COCO_CLASSES = [
-    '__background__', 'person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus',
-    'train', 'truck', 'boat', 'traffic light', 'fire hydrant', 'stop sign',
-    'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow',
-    'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'umbrella', 'handbag', 'tie',
-    'suitcase', 'frisbee', 'skis', 'snowboard', 'sports ball', 'kite', 'baseball bat',
-    'baseball glove', 'skateboard', 'surfboard', 'tennis racket', 'bottle', 'wine glass',
-    'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple', 'sandwich', 'orange',
-    'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake', 'chair', 'couch',
-    'potted plant', 'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse', 'remote',
-    'keyboard', 'cell phone', 'microwave', 'oven', 'toaster', 'sink', 'refrigerator',
-    'book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush'
-]
+# Load CLIP model for scene classification
+clip_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
+clip_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
 
-FURNITURE_CLASSES = ['chair', 'couch', 'bed', 'dining table', 'toilet', 'tv', 'refrigerator']
-
-def detect_furniture_objects(image_bytes):
-    """Detect furniture objects in image using pre-trained model."""
+def classify_room_type(image_bytes):
+    """Classify the room type using CLIP."""
     try:
         img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-        img_tensor = F.to_tensor(img).unsqueeze(0)
+        labels = ["living room", "kitchen", "bedroom", "bathroom", "outdoor", "desert", "park", "street"]
+        inputs = clip_processor(text=labels, images=img, return_tensors="pt", padding=True)
+        outputs = clip_model(**inputs)
+        logits_per_image = outputs.logits_per_image
+        probs = logits_per_image.softmax(dim=1)
+        best_idx = probs.argmax().item()
+        best_label = labels[best_idx]
+        if best_label in ["outdoor", "desert", "park", "street"]:
+            return "outdoor"
+        else:
+            return best_label.replace(" ", "_")
+    except Exception as e:
+        print(f"Error classifying room type: {e}")
+        return "living_room"  # Default
+
+def detect_furniture_objects(image_bytes, breadth, length):
+    """Detect furniture objects in image using YOLOv8."""
+    try:
+        img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         
-        with torch.no_grad():
-            predictions = model(img_tensor)
-        
-        boxes = predictions[0]['boxes'].cpu().numpy()
-        labels = predictions[0]['labels'].cpu().numpy()
-        scores = predictions[0]['scores'].cpu().numpy()
-        
+        results = model(img)
         furniture = []
-        for box, label, score in zip(boxes, labels, scores):
-            if score > 0.5 and COCO_CLASSES[label] in FURNITURE_CLASSES:
-                # Convert box to position (center of box, assume floor level)
-                x1, y1, x2, y2 = box
-                center_x = (x1 + x2) / 2 / img.width * 5.0  # Scale to room width
-                center_y = 0  # Floor
-                center_z = (y1 + y2) / 2 / img.height * 4.0  # Scale to room depth
-                furniture.append({
-                    "type": COCO_CLASSES[label],
-                    "position": [round(center_x, 1), center_y, round(center_z, 1)]
-                })
+        for result in results:
+            boxes = result.boxes
+            for box in boxes:
+                class_id = int(box.cls)
+                class_name = model.names[class_id]
+                confidence = float(box.conf)
+                if confidence > 0.3:
+                    x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
+                    center_x = (x1 + x2) / 2 / img.width * breadth
+                    center_y = (y1 + y2) / 2 / img.height * length
+                    print(f"Detected: {class_name} with score {confidence:.2f}")
+                    furniture.append({
+                        "type": class_name,
+                        "position": [float(round(center_x, 1)), float(round(center_y, 1))]
+                    })
         
-        return furniture if furniture else [{"type": "chair", "position": [2.0, 0, 1.0]}]  # Fallback
+        return furniture if furniture else [{"type": "chair", "position": [2.0, 1.0]}]  # Fallback
     except Exception as e:
         print(f"Error detecting furniture: {e}")
-        return [{"type": "chair", "position": [2.0, 0, 1.0]}]
+        return [{"type": "chair", "position": [2.0, 1.0]}]
 
 # Mock furniture types
 FURNITURE_TYPES = ["chair", "sofa", "table", "bed", "fridge", "cabinet"]
@@ -85,19 +86,18 @@ def estimate_dimensions(image_bytes):
     try:
         img = Image.open(io.BytesIO(image_bytes))
         width, height = img.size
-        # Simple estimation: assume height 3m, scale width/depth
-        scale = 3.0 / height  # pixels to meters
-        room_width = width * scale
-        room_depth = 4.0  # Assume depth
-        room_height = 3.0
-        return {"width": round(room_width, 1), "height": room_height, "depth": room_depth}
+        # Simple estimation: assume breadth = width scaled, length = height scaled
+        scale = 0.1  # pixels to meters
+        breadth = width * scale
+        length = height * scale
+        return {"breadth": float(round(breadth, 1)), "length": float(round(length, 1))}
     except Exception as e:
         print(f"Error estimating dimensions: {e}")
-        return {"width": 5.0, "height": 3.0, "depth": 4.0}  # Default
+        return {"breadth": 5.0, "length": 4.0}  # Default
 
-def detect_furniture(room_type, image_bytes):
+def detect_furniture(room_type, image_bytes, breadth, length):
     """Detect furniture using AI model."""
-    return detect_furniture_objects(image_bytes)
+    return detect_furniture_objects(image_bytes, breadth, length)
 
 async def process_image(file: UploadFile, room_no: int):
     """Process a single image to extract room data."""
@@ -109,15 +109,17 @@ async def process_image(file: UploadFile, room_no: int):
     # Extract colors
     colors = extract_dominant_colors(image_bytes)
     
-    # Determine room type (mock: alternate or based on filename)
-    room_types = ["living_room", "kitchen", "bedroom", "bathroom"]
-    room_type = room_types[room_no % len(room_types)]
+    # Determine room type using CLIP
+    room_type = classify_room_type(image_bytes)
     
-    # Detect furniture
-    furniture = detect_furniture(room_type, image_bytes)
+    # Detect furniture (only for indoor rooms)
+    if room_type == "outdoor":
+        furniture = []  # No furniture for outdoor
+    else:
+        furniture = detect_furniture(room_type, image_bytes, dimensions["breadth"], dimensions["length"])
     
     # Position: side by side
-    position = [room_no * (dimensions["width"] + 1), 0, 0]  # Offset by width + gap
+    position = [float(room_no * (dimensions["breadth"] + 1)), 0.0]  # Offset by breadth + gap
     
     return {
         "roomno": room_no + 1,
@@ -125,7 +127,8 @@ async def process_image(file: UploadFile, room_no: int):
         "position": position,
         "dimensions": dimensions,
         "colors_of_walls": colors,
-        "furniture": furniture
+        "furniture": furniture,
+        "furniture_count": len(furniture)
     }
 
 @app.post("/upload")
