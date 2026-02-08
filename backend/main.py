@@ -62,18 +62,19 @@ def detect_furniture_objects(image_bytes, breadth, length):
         print(f"Error detecting furniture: {e}")
         return [{"type": "chair", "position": [2.0, 1.0]}]
 
-def extract_dominant_colors(image_bytes, num_colors=2):
-    """Extract dominant colors from image."""
+def extract_dominant_colors(image_bytes, num_colors=1):
+    """Extract dominant color from image."""
     try:
         img = Image.open(io.BytesIO(image_bytes))
         color_thief = ColorThief(io.BytesIO(image_bytes))
         colors = color_thief.get_palette(color_count=num_colors)
-        # Convert RGB to hex
-        hex_colors = [f"#{r:02x}{g:02x}{b:02x}" for r, g, b in colors]
-        return hex_colors
+        # Convert RGB to hex, take the first (dominant) color
+        r, g, b = colors[0]
+        hex_color = f"#{r:02x}{g:02x}{b:02x}"
+        return hex_color
     except Exception as e:
         print(f"Error extracting colors: {e}")
-        return ["#FFFFFF", "#F0F0F0"]  # Default
+        return "#FFFFFF"  # Default
 
 def estimate_dimensions(image_bytes):
     """Estimate room dimensions from image size."""
@@ -116,7 +117,7 @@ async def process_image(file: UploadFile, room_no: int):
         "roomtype": room_type,
         "position": position,
         "dimensions": dimensions,
-        "colors_of_walls": colors,
+        "room_color": colors,
         "furniture": furniture,
         "furniture_count": len(furniture)
     }

@@ -1,5 +1,5 @@
 {
-  "description": "Sample API responses for Roomify. These are examples of what the backend returns after processing uploaded images. Rooms are rectangular, positioned side by side by default.",
+  "description": "Sample API responses for Roomify. These are examples of what the backend returns after processing uploaded images. Rooms are rectangular, positioned side by side by default. Each room has a single dominant color applied uniformly.",
   "single_room_example": {
     "roomno": 1,
     "roomtype": "living_room",
@@ -8,7 +8,7 @@
       "breadth": 5.0,
       "length": 4.0
     },
-    "colors_of_walls": ["#FFFFFF", "#F0F0F0"],
+    "room_color": "#FFFFFF",
     "furniture": [
       {
         "type": "chair",
@@ -30,7 +30,7 @@
         "breadth": 5.0,
         "length": 4.0
       },
-      "colors_of_walls": ["#FFFFFF", "#F0F0F0"],
+      "room_color": "#FFFFFF",
       "furniture": [
         {
           "type": "chair",
@@ -47,7 +47,7 @@
         "breadth": 4.0,
         "length": 3.5
       },
-      "colors_of_walls": ["#FFFFF0", "#E0E0E0"],
+      "room_color": "#FFFFF0",
       "furniture": [
         {
           "type": "fridge",

@@ -32,7 +32,7 @@ For uploading images, the backend returns a JSON array of rooms (rectangular onl
       "height": 3.0,
       "depth": 4.0
     },
-    "colors_of_walls": ["#FFFFFF", "#F0F0F0"],
+    "room_color": "#FFFFFF",
     "furniture": [
       {
         "type": "chair",
