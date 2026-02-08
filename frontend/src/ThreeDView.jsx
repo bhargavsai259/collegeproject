@@ -47,7 +47,12 @@ export default function ThreeDView({ rooms }) {
     rooms.forEach(room => {
       // Room geometry (simple box)
       const geometry = new THREE.BoxGeometry(room.dimensions.breadth, 50, room.dimensions.length);
-      const material = new THREE.MeshPhongMaterial({ color: room.room_color });
+      const material = new THREE.MeshPhongMaterial({
+        color: room.room_color,
+        transparent: true,
+        opacity: 0.3, // Lowered opacity for better transparency
+        side: THREE.DoubleSide // Ensure both sides of the walls are rendered
+      });
       const mesh = new THREE.Mesh(geometry, material);
       mesh.position.set(room.position[0], 25, room.position[1]);
       scene.add(mesh);
@@ -58,16 +63,37 @@ export default function ThreeDView({ rooms }) {
         loader.load('/src/assets/kitchen/sofa.glb', (gltf) => {
           const model = gltf.scene;
           model.scale.set(10, 10, 10); // Scale the model
+
+          // Ensure furniture stays within room boundaries
+          const adjustedX = Math.min(
+            Math.max(item.position[0], -room.dimensions.breadth / 2 + 10),
+            room.dimensions.breadth / 2 - 10
+          );
+          const adjustedZ = Math.min(
+            Math.max(item.position[1], -room.dimensions.length / 2 + 10),
+            room.dimensions.length / 2 - 10
+          );
+
           model.position.set(
-            item.position[0] + room.position[0],
+            adjustedX + room.position[0],
             0, // Adjust height if needed
-            item.position[1] + room.position[1]
+            adjustedZ + room.position[1]
           );
           scene.add(model);
         }, undefined, (error) => {
           console.error('An error occurred while loading the model:', error);
         });
       });
+
+      // Make room walls transparent
+      const transparentMaterial = new THREE.MeshPhongMaterial({
+        color: room.room_color,
+        transparent: true,
+        opacity: 0.3 // Lowered opacity for better transparency
+      });
+      const transparentMesh = new THREE.Mesh(geometry, transparentMaterial);
+      transparentMesh.position.set(room.position[0], 25, room.position[1]);
+      scene.add(transparentMesh);
     });
 
     // Lighting
