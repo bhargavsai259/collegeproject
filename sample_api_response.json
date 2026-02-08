@@ -1,0 +1,77 @@
+{
+  "description": "Sample API responses for Roomify. These are examples of what the backend returns after processing uploaded images. Rooms are rectangular, positioned side by side by default.",
+  "single_room_example": {
+    "roomno": 1,
+    "roomtype": "living_room",
+    "position": [0, 0, 0],
+    "dimensions": {
+      "width": 5.0,
+      "height": 3.0,
+      "depth": 4.0
+    },
+    "colors_of_walls": ["#FFFFFF", "#F0F0F0"],
+    "furniture": [
+      {
+        "type": "chair",
+        "position": [2.0, 0, 1.0]
+      },
+      {
+        "type": "sofa",
+        "position": [1.5, 0, 0.5]
+      }
+    ]
+  },
+  "multi_room_example": [
+    {
+      "roomno": 1,
+      "roomtype": "living_room",
+      "position": [0, 0, 0],
+      "dimensions": {
+        "width": 5.0,
+        "height": 3.0,
+        "depth": 4.0
+      },
+      "colors_of_walls": ["#FFFFFF", "#F0F0F0"],
+      "furniture": [
+        {
+          "type": "chair",
+          "position": [2.0, 0, 1.0]
+        }
+      ]
+    },
+    {
+      "roomno": 2,
+      "roomtype": "kitchen",
+      "position": [6, 0, 0],
+      "dimensions": {
+        "width": 4.0,
+        "height": 3.0,
+        "depth": 3.5
+      },
+      "colors_of_walls": ["#FFFFF0", "#E0E0E0"],
+      "furniture": [
+        {
+          "type": "fridge",
+          "position": [1.0, 0, 1.5]
+        }
+      ]
+    },
+    {
+      "roomno": 3,
+      "roomtype": "bedroom",
+      "position": [11, 0, 0],
+      "dimensions": {
+        "width": 4.5,
+        "height": 3.0,
+        "depth": 4.0
+      },
+      "colors_of_walls": ["#F5F5F5"],
+      "furniture": [
+        {
+          "type": "bed",
+          "position": [2.0, 0, 2.0]
+        }
+      ]
+    }
+  ]
+}
