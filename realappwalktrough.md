@@ -1,7 +1,7 @@
 # Roomify — User Walkthrough
 
 ## Overview
-User uploads one or more photographs of rooms and Roomify produces an interactive 3D view of the connected space. The 3D view preserves wall and floor colors, places detected furniture as 3D objects, and allows full rotation/inspection across multiple rooms (ceiling, floor, walls, corners, furniture).
+User uploads one or more photographs of rooms and Roomify produces an interactive 3D view of the connected space. The 3D view uses a single dominant color for the entire room, places detected furniture as 3D objects, and allows full rotation/inspection across multiple rooms (ceiling, floor, walls, corners, furniture).
 
 ## User Flow
 1. Open Roomify and click **Upload Images**.
@@ -17,7 +17,7 @@ User uploads one or more photographs of rooms and Roomify produces an interactiv
 - Inspect ceiling/floor: orbit camera above or below the room to view ceiling and floor surfaces.
 - Navigate rooms: use UI buttons or click on detected doorways to teleport between connected rooms.
 - Toggle layers: UI toggles to show/hide walls, floor, furniture, or bounding boxes per room or globally.
-- Color sync: walls and floors use extracted dominant colors; a small color swatch shows the sampled colors and allows manual override.
+- Color sync: the entire room uses the extracted dominant color; a small color swatch shows the sampled color and allows manual override.
 
 ### Moving furniture (interactive)
 - Drag & drop: click and drag a furniture object to move it across the floor plane; on touch, drag with a single finger.
@@ -40,41 +40,41 @@ User uploads one or more photographs of rooms and Roomify produces an interactiv
 ## What the view preserves
 
 ## What the view preserves
-- Wall/floor colors: sampled from segmentation masks and applied as materials on the 3D geometry.
+- Room color: a single dominant color sampled from the image and applied uniformly to walls, floor, and ceiling.
 - Windows & doors: detected as part of segmentation and rendered as openings or textured regions when possible.
 - Furniture: detected furniture items are matched to nearest 3D assets (placeholders if exact match missing) and positioned using detection bounding boxes and depth map.
 
 ## Backend processing (brief)
 - Receive images, run preprocessing (resize / normalize) on each.
-- For each image: Run segmentation model (Mask R-CNN / SAM) → masks for walls, floor, windows, doors, furniture.
-- Run depth estimation (MiDaS/DPT) → per-pixel relative depth map.
-- Run object detection (YOLO/Detectron2) → furniture categories + bounding boxes.
-- Detect room connections: Analyze doorways and shared features across images to align rooms.
-- Postprocess: Combine masks + depth + alignments → generate 3D meshes for each room, stitch into a unified scene. Map extracted colors onto materials.
-- Package JSON scene description (including room adjacency) + 3D asset references and send to frontend.
+- For each image: Extract one dominant color from the image.
+- Run object detection (YOLO) → furniture categories + bounding boxes.
+- Estimate room dimensions from image size.
+- Classify room type using CLIP.
+- Package JSON scene description with room data and send to frontend.
 
 ## Frontend rendering (brief)
 - Use Three.js to build a multi-room scene from the JSON description.
-- Construct room shells from planar geometry and depth-derived displacement for realism, aligned via detected connections.
-- Place furniture assets at estimated positions across rooms and apply basic lighting and shadows.
+- Construct room shells from basic geometry and apply the uniform room color.
+- Place furniture assets at estimated positions and apply basic lighting and shadows.
 - Expose UI for camera controls, room navigation, toggles, and color overrides.
 
 ## Notes & limitations
-- Depth is relative: absolute scale may be approximate. Consider a calibration step or allow user scale adjustments.
+- Dimensions are estimated from image size; absolute scale may be approximate. Consider a calibration step or allow user scale adjustments.
 - Furniture placement is approximate for single-view input; occlusions and heavy clutter reduce accuracy.
-- Windows/doors are detected where visible; invisible structures cannot be inferred.
-- Multi-room alignment relies on detected connections (e.g., doorways); poor overlap between images may lead to misalignment. Start with adjacent rooms for best results.
+- Room color is a single dominant color from the entire image, not separated by surfaces.
+- Multi-room support is basic: rooms are positioned side by side; users can manually arrange them.
 
 ## Quick test checklist
 - Try images with clear floor and at least two visible walls per room.
 - Test with rooms containing a single dominant furniture piece, then with multiple items.
-- Verify color extraction by comparing swatches to the original photo.
-- Test multi-room setups: Upload images of connected rooms (e.g., living room and kitchen with a visible doorway) and check alignment/navigation.
+- Verify color extraction by comparing the swatch to the original photo.
+- Test multi-room setups: Upload multiple images; rooms will be positioned side by side for manual arrangement.
 
 ## Next steps
+- Add segmentation to separate floor, walls, ceiling for more accurate color extraction.
+- Add depth estimation for better dimension accuracy.
 - Add a manual calibration UI to set room scale (e.g., user draws 1m on a wall).
 - Add ability to replace furniture with selectable 3D models from a catalog.
-- Improve mesh reconstruction using multi-view input or user-provided measurements.
-- Enhance multi-room alignment: Allow users to manually adjust room positions or add connection hints (e.g., "these doors connect").
+- Improve multi-room alignment: Detect connections or allow users to manually adjust room positions.
 
 
