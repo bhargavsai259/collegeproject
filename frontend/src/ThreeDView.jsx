@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import teapoy from '@assets/livingroom/tv.png';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 function parseRooms(response) {
   // Flatten furniture and create simple room geometry
   return response.map(room => ({
@@ -52,16 +52,21 @@ export default function ThreeDView({ rooms }) {
       mesh.position.set(room.position[0], 25, room.position[1]);
       scene.add(mesh);
 
-      // Add furniture (simple spheres/cubes)
+      // Add furniture (load GLB model for each item)
+      const loader = new GLTFLoader();
       room.furniture.forEach(item => {
-        // Create a plane and show teapot image as texture
-        const texture = new THREE.TextureLoader().load(teapoy);
-        const fGeometry = new THREE.PlaneGeometry(20, 20);
-        const fMaterial = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
-        const fMesh = new THREE.Mesh(fGeometry, fMaterial);
-        fMesh.position.set(item.position[0] + room.position[0], 10, item.position[1] + room.position[1]);
-        fMesh.rotation.x = -Math.PI / 2; // Make plane face upward
-        scene.add(fMesh);
+        loader.load('/src/assets/kitchen/sofa.glb', (gltf) => {
+          const model = gltf.scene;
+          model.scale.set(10, 10, 10); // Scale the model
+          model.position.set(
+            item.position[0] + room.position[0],
+            0, // Adjust height if needed
+            item.position[1] + room.position[1]
+          );
+          scene.add(model);
+        }, undefined, (error) => {
+          console.error('An error occurred while loading the model:', error);
+        });
       });
     });
 
