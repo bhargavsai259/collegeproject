@@ -60,7 +60,7 @@ export default function ThreeDView({ rooms }) {
       // Add furniture (load GLB model for each item)
       const loader = new GLTFLoader();
       room.furniture.forEach(item => {
-        loader.load('/src/assets/kitchen/sofa.glb', (gltf) => {
+        loader.load('/src/assets/living/sofa.glb', (gltf) => {
           const model = gltf.scene;
           model.scale.set(10, 10, 10); // Scale the model
 
@@ -116,5 +116,5 @@ export default function ThreeDView({ rooms }) {
     };
   }, [rooms]);
 
-  return <div ref={mountRef} style={{ width: '100%', height: '500px' }} />;
+  return <div ref={mountRef} style={{ width: '1099px', height: '800px' }} />;
 }

@@ -15,7 +15,7 @@ function UploadPage() {
     const formData = new FormData();
     files.forEach((file) => formData.append("files", file));
     try {
-      const res = await fetch("http://localhost:8000/upload", {
+      const res = await fetch(`${process.env.REACT_APP_API_URL}/upload`, {
         method: "POST",
         body: formData,
       });
