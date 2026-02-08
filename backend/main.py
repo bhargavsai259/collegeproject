@@ -1,12 +1,20 @@
 from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
 import io
 from colorthief import ColorThief
 from ultralytics import YOLO
 from transformers import CLIPProcessor, CLIPModel
 
-app = FastAPI(title="Roomify Backend API", description="API for processing room images into 3D scene data")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Or ["http://localhost:5173"] for stricter security
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Load YOLOv8 model for object detection
 model = YOLO('yolov8n.pt')  # Nano model, lightweight
