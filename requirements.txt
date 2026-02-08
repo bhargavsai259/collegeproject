@@ -1,0 +1,19 @@
+# Roomify backend requirements
+fastapi
+uvicorn[standard]
+numpy
+opencv-python
+pillow
+torch
+torchvision
+transformers
+timm
+midas
+segment-anything
+yolov5
+detectron2
+scikit-image
+matplotlib
+open3d
+
+# Add other model-specific dependencies as needed
