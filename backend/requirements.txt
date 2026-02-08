@@ -1,6 +1,7 @@
 # Roomify backend requirements
 fastapi
 uvicorn[standard]
+python-multipart
 numpy
 opencv-python
 pillow
@@ -8,6 +9,7 @@ torch
 torchvision
 transformers
 timm
+colorthief
 midas
 segment-anything
 yolov5
