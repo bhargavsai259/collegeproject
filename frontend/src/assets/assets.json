@@ -1,0 +1,21 @@
+{
+  "kitchen": [
+    { "name": "fridge", "type": "appliance", "image": "kitchen/fridge.png" },
+    { "name": "table", "type": "furniture", "image": "kitchen/table.png" }
+  ],
+  "livingroom": [
+    { "name": "ac", "type": "appliance", "image": "livingroom/ac.png" },
+    { "name": "bed", "type": "furniture", "image": "livingroom/bed.png" },
+    { "name": "blackminisofa", "type": "furniture", "image": "livingroom/blackminisofa.png" },
+    { "name": "chair", "type": "furniture", "image": "livingroom/chair.png" },
+    { "name": "closet", "type": "furniture", "image": "livingroom/closet.png" },
+    { "name": "diningtable", "type": "furniture", "image": "livingroom/diningtable.png" },
+    { "name": "door", "type": "structure", "image": "livingroom/door.png" },
+    { "name": "lamp", "type": "appliance", "image": "livingroom/lamp.png" },
+    { "name": "teapot", "type": "utensil", "image": "livingroom/teapot.png" },
+    { "name": "teapoy", "type": "furniture", "image": "livingroom/teapoy.jpg" },
+    { "name": "teapoywhite", "type": "furniture", "image": "livingroom/teapoywhite.png" },
+    { "name": "tv", "type": "appliance", "image": "livingroom/tv.png" },
+    { "name": "woodteapot", "type": "utensil", "image": "livingroom/woodteapot.png" }
+  ]
+}

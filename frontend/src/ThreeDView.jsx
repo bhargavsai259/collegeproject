@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-
+import teapoy from '@assets/livingroom/tv.png';
 function parseRooms(response) {
   // Flatten furniture and create simple room geometry
   return response.map(room => ({
@@ -54,10 +54,13 @@ export default function ThreeDView({ rooms }) {
 
       // Add furniture (simple spheres/cubes)
       room.furniture.forEach(item => {
-        const fGeometry = new THREE.BoxGeometry(20, 20, 20);
-        const fMaterial = new THREE.MeshPhongMaterial({ color: 0x888888 });
+        // Create a plane and show teapot image as texture
+        const texture = new THREE.TextureLoader().load(teapoy);
+        const fGeometry = new THREE.PlaneGeometry(20, 20);
+        const fMaterial = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
         const fMesh = new THREE.Mesh(fGeometry, fMaterial);
         fMesh.position.set(item.position[0] + room.position[0], 10, item.position[1] + room.position[1]);
+        fMesh.rotation.x = -Math.PI / 2; // Make plane face upward
         scene.add(fMesh);
       });
     });
