@@ -9,6 +9,7 @@ Roomify Project Plan
 | Furniture Detection    | Object Detection      | YOLO, Faster R-CNN, Detectron2: Find items  | Locates furniture in images for placement in 3D scene.                     |
 |                        | Furniture Mapping     | Map detected furniture to types             | Assigns categories (e.g., chair) for 3D placement.                         |
 | Multi-Room Support     | Separate Room Handling| Process images independently                | Creates separate rectangular rooms, positioned side by side for user adjustment. |
+| 3D Export              | Scene Export          | Export 3D scene to GLTF format              | Allows users to save/download the 3D model for external use or sharing.    |
 
 ## Project Plan
 
@@ -23,6 +24,7 @@ Roomify Project Plan
 | 7    | 3D Reconstruction              | Build rectangular rooms from dimensions    | Creates simple 3D boxes for rooms with colors and furniture.               |
 | 8    | 3D Rendering Frontend          | Render rooms, place furniture, apply colors| Displays interactive 3D view with user-draggable rooms.                    |
 | 8.5  | Multi-Room Support             | Handle multiple images as separate rooms   | Positions rooms side by side; users drag to connect/arrange.               |
+| 8.6  | 3D Export                      | Add GLTF export for 3D scene               | Enables users to download the 3D model in GLTF format for external use.    |
 | 9    | Testing & Iteration            | Test images, improve accuracy              | Validates and refines the system for real-world reliability.               |
 | 10   | Deployment                     | Deploy backend/frontend                    | Makes the app accessible to users.                                        |
 | 11   | Documentation & Improvements   | Document, plan advanced features           | Ensures maintainability and future enhancements.                           |
