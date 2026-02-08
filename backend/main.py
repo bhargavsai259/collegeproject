@@ -7,6 +7,7 @@ from colorthief import ColorThief
 from ultralytics import YOLO
 from transformers import CLIPProcessor, CLIPModel
 
+app = FastAPI(title="Roomify Backend API", description="API for processing room images into 3D scene data")
 
 app.add_middleware(
     CORSMiddleware,
