@@ -11,7 +11,7 @@ export default function ThreeDViewRoute() {
       formData.append('files', files[i]);
     }
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
       const res = await fetch(`${apiUrl}/upload`, {
         method: 'POST',
         body: formData

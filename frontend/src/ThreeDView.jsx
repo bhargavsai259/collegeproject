@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+import assets from './assets/assets.json';
 function parseRooms(response) {
   // Flatten furniture and create simple room geometry
   return response.map(room => ({
@@ -60,7 +61,11 @@ export default function ThreeDView({ rooms }) {
       // Add furniture (load GLB model for each item)
       const loader = new GLTFLoader();
       room.furniture.forEach(item => {
-        loader.load('/src/assets/living/sofa.glb', (gltf) => {
+        debugger
+        const modelData = assets.models.find(model => model?.name?.toLowerCase() === item?.type?.toLowerCase());
+        const modelPath = modelData ? modelData.path.replace('@assets', '/src/assets') : '/src/assets/living/coffee_table.glb';
+
+        loader.load(modelPath, (gltf) => {
           const model = gltf.scene;
           model.scale.set(10, 10, 10); // Scale the model
 
