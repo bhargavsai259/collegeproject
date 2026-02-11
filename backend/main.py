@@ -3,7 +3,6 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
 import io
-from colorthief import ColorThief
 from ultralytics import YOLO
 from transformers import CLIPProcessor, CLIPModel
 
@@ -66,38 +65,14 @@ def detect_furniture_objects(image_bytes, breadth, length):
                         "position": [float(round(center_x, 1)), float(round(center_y, 1))]
                     })
         
-        return furniture if furniture else [{"type": "chair", "position": [2.0, 1.0]}]  # Fallback
+        return furniture if furniture else [{"type": "chair", "position": [100.0, 75.0]}]  # Fallback
     except Exception as e:
         print(f"Error detecting furniture: {e}")
-        return [{"type": "chair", "position": [2.0, 1.0]}]
+        return [{"type": "chair", "position": [100.0, 75.0]}]
 
-def extract_dominant_colors(image_bytes, num_colors=1):
-    """Extract dominant color from image."""
-    try:
-        img = Image.open(io.BytesIO(image_bytes))
-        color_thief = ColorThief(io.BytesIO(image_bytes))
-        colors = color_thief.get_palette(color_count=num_colors)
-        # Convert RGB to hex, take the first (dominant) color
-        r, g, b = colors[0]
-        hex_color = f"#{r:02x}{g:02x}{b:02x}"
-        return hex_color
-    except Exception as e:
-        print(f"Error extracting colors: {e}")
-        return "#FFFFFF"  # Default
-
-def estimate_dimensions(image_bytes):
-    """Estimate room dimensions from image size."""
-    try:
-        img = Image.open(io.BytesIO(image_bytes))
-        width, height = img.size
-        # Simple estimation: assume breadth = width scaled, length = height scaled
-        scale = 0.1  # pixels to meters
-        breadth = width * scale
-        length = height * scale
-        return {"breadth": float(round(breadth, 1)), "length": float(round(length, 1))}
-    except Exception as e:
-        print(f"Error estimating dimensions: {e}")
-        return {"breadth": 5.0, "length": 4.0}  # Default
+def get_default_dimensions():
+    """Return fixed default dimensions for all rooms."""
+    return {"breadth": 200.0, "length": 150.0}
 
 def calculate_room_positions(rooms_data):
     """
@@ -133,11 +108,8 @@ async def process_image(file: UploadFile, room_no: int):
     """Process a single image to extract room data."""
     image_bytes = await file.read()
     
-    # Estimate dimensions
-    dimensions = estimate_dimensions(image_bytes)
-    
-    # Extract colors
-    colors = extract_dominant_colors(image_bytes)
+    # Use fixed default dimensions for all rooms
+    dimensions = get_default_dimensions()
     
     # Determine room type using CLIP
     room_type = classify_room_type(image_bytes)
@@ -154,7 +126,6 @@ async def process_image(file: UploadFile, room_no: int):
         "roomtype": room_type,
         "position": [0.0, 0.0],  # Temporary, will be updated
         "dimensions": dimensions,
-        "room_color": colors,
         "furniture": furniture,
         "furniture_count": len(furniture)
     }
@@ -163,7 +134,7 @@ async def process_image(file: UploadFile, room_no: int):
 async def upload_images(files: list[UploadFile] = File(...)):
     """
     Upload multiple room images and get 3D scene data.
-    Processes each image to extract dimensions, colors, and furniture.
+    Processes each image to extract room type and furniture positions.
     Automatically arranges rooms in a non-overlapping grid layout.
     """
     rooms = []
