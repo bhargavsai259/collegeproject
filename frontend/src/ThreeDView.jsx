@@ -103,9 +103,10 @@ export default function ThreeDView({ rooms }) {
     const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x888888, 0.5);
     scene.add(hemisphereLight);
 
-    // Store furniture objects and walls
+    // Store furniture objects, walls and placed bounding boxes
     const furnitureObjects = [];
     const walls = [];
+    const placedBBoxes = [];
 
     // Use a single shared color for all scene materials
     const singleColor = 0xcccccc;
@@ -279,11 +280,49 @@ export default function ThreeDView({ rooms }) {
             const floorTopY = 2;
             const yPos = size.y / 2 + floorTopY;
 
-            model.position.set(
-              placedX + cx,
-              yPos,
-              placedZ + cz
-            );
+            // Collision-avoidance with previously placed furniture
+            const testBBoxAt = (xRel, zRel) => {
+              model.position.set(xRel + cx, yPos, zRel + cz);
+              const b = new THREE.Box3().setFromObject(model);
+              for (const other of placedBBoxes) {
+                if (b.intersectsBox(other)) return true;
+              }
+              return false;
+            };
+
+            // If initial placement collides, search nearby positions in a spiral
+            if (testBBoxAt(placedX, placedZ)) {
+              const step = Math.max(size.x, size.z, 5);
+              const maxRadius = Math.max(roomWidth, roomDepth);
+              let found = false;
+              for (let r = step; r <= maxRadius && !found; r += step) {
+                for (let ang = 0; ang < 360; ang += 30) {
+                  const rad = ang * Math.PI / 180;
+                  const nx = placedX + Math.cos(rad) * r;
+                  const nz = placedZ + Math.sin(rad) * r;
+                  if (nx < minX || nx > maxX || nz < minZ || nz > maxZ) continue;
+                  if (!testBBoxAt(nx, nz)) {
+                    placedX = nx;
+                    placedZ = nz;
+                    found = true;
+                    break;
+                  }
+                }
+              }
+              if (!found) {
+                // fallback: center the model in the room
+                placedX = 0;
+                placedZ = 0;
+                model.position.set(placedX + cx, yPos, placedZ + cz);
+              }
+            }
+
+            // Final placement
+            model.position.set(placedX + cx, yPos, placedZ + cz);
+
+            // Record bbox of placed model to avoid future intersections
+            const finalBBox = new THREE.Box3().setFromObject(model);
+            placedBBoxes.push(finalBBox);
 
             model.traverse((child) => {
               if (child.isMesh) {
