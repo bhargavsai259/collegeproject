@@ -181,7 +181,6 @@ async def upload_images(files: list[UploadFile] = File(...)):
     
     return JSONResponse(content=rooms)
 
-
 @app.get("/")
 async def root():
     return {"message": "Roomify Backend API is running"}
