@@ -107,55 +107,26 @@ export default function ThreeDView({ rooms }) {
     const furnitureObjects = [];
     const walls = [];
 
-    // Create smooth, solid color materials (no textures = no noise)
-
-    // Wall materials with polygonOffset to prevent z-fighting
-    const wallMaterial = new THREE.MeshStandardMaterial({
-      color: 0xf5f5dc, // Cream color
+    // Use a single shared color for all scene materials
+    const singleColor = 0xcccccc;
+    const sharedMaterialProps = {
+      color: singleColor,
       roughness: 0.9,
-      metalness: 0.0,
-      side: THREE.DoubleSide,
-      flatShading: false, // Smooth shading
-      polygonOffset: true,
-      polygonOffsetFactor: 1,
-      polygonOffsetUnits: 1,
-      transparent: true,
-      opacity: 1.0
-    });
-
-    const brickWallMaterial = new THREE.MeshStandardMaterial({
-      color: 0xb8734f, // Brick color
-      roughness: 0.95,
       metalness: 0.0,
       side: THREE.DoubleSide,
       flatShading: false,
       polygonOffset: true,
       polygonOffsetFactor: 1,
       polygonOffsetUnits: 1,
-      transparent: true,
+      transparent: false,
       opacity: 1.0
-    });
+    };
 
-    const floorMaterial = new THREE.MeshStandardMaterial({
-      color: 0xd4a574, // Wood color
-      roughness: 0.85,
-      metalness: 0.0,
-      flatShading: false
-    });
-
-    const doorFrameMaterial = new THREE.MeshStandardMaterial({
-      color: 0x654321, // Dark wood
-      roughness: 0.8,
-      metalness: 0.0,
-      side: THREE.DoubleSide
-    });
-
-    const windowFrameMaterial = new THREE.MeshStandardMaterial({
-      color: 0xffffff, // White
-      roughness: 0.6,
-      metalness: 0.0,
-      side: THREE.DoubleSide
-    });
+    const wallMaterial = new THREE.MeshStandardMaterial(sharedMaterialProps);
+    const brickWallMaterial = wallMaterial;
+    const floorMaterial = wallMaterial;
+    const doorFrameMaterial = wallMaterial;
+    const windowFrameMaterial = wallMaterial;
 
     // Add rooms with proper walls - NO OVERLAP
     rooms.forEach((room, roomIndex) => {
