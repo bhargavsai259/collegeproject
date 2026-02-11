@@ -33,6 +33,7 @@
     { "name": "treadmill", "path": "@assets/living/treadmill.glb" },
     { "name": "tvdish", "path": "@assets/living/tvdish.glb" },
     { "name": "tv_bench", "path": "@assets/living/tv_bench.glb" },
-    { "name": "washing_machine", "path": "@assets/living/washing_machine.glb" }
+    { "name": "washing_machine", "path": "@assets/living/washing_machine.glb" },
+    { "name": "window", "path": "@assets/window/window.glb" }
   ]
 }
