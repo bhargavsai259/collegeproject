@@ -99,6 +99,36 @@ def estimate_dimensions(image_bytes):
         print(f"Error estimating dimensions: {e}")
         return {"breadth": 5.0, "length": 4.0}  # Default
 
+def calculate_room_positions(rooms_data):
+    """
+    Calculate non-overlapping positions for all rooms.
+    Arranges rooms side-by-side in a horizontal line with proper spacing.
+    """
+    if not rooms_data:
+        return rooms_data
+    
+    # Gap between rooms
+    SPACING = 50.0
+    
+    # Place all rooms in a horizontal line (side by side)
+    current_x_offset = 0.0
+    
+    for i, room in enumerate(rooms_data):
+        breadth = room["dimensions"]["breadth"]
+        length = room["dimensions"]["length"]
+        
+        # Position room with its left edge at current_x_offset
+        # Center it on the Y-axis (all rooms aligned at Y=0)
+        room["position"] = [
+            float(round(current_x_offset, 1)), 
+            0.0
+        ]
+        
+        # Move x_offset for next room (current room width + spacing)
+        current_x_offset += breadth + SPACING
+    
+    return rooms_data
+
 async def process_image(file: UploadFile, room_no: int):
     """Process a single image to extract room data."""
     image_bytes = await file.read()
@@ -118,13 +148,11 @@ async def process_image(file: UploadFile, room_no: int):
     else:
         furniture = detect_furniture_objects(image_bytes, dimensions["breadth"], dimensions["length"])
     
-    # Position: side by side
-    position = [float(room_no * (dimensions["breadth"] + 1)), 0.0]  # Offset by breadth + gap
-    
+    # Position will be calculated later in calculate_room_positions
     return {
         "roomno": room_no + 1,
         "roomtype": room_type,
-        "position": position,
+        "position": [0.0, 0.0],  # Temporary, will be updated
         "dimensions": dimensions,
         "room_color": colors,
         "furniture": furniture,
@@ -135,7 +163,8 @@ async def process_image(file: UploadFile, room_no: int):
 async def upload_images(files: list[UploadFile] = File(...)):
     """
     Upload multiple room images and get 3D scene data.
-    Processes each image to extract dimensions, colors, and mock furniture.
+    Processes each image to extract dimensions, colors, and furniture.
+    Automatically arranges rooms in a non-overlapping grid layout.
     """
     rooms = []
     for i, file in enumerate(files):
@@ -146,6 +175,10 @@ async def upload_images(files: list[UploadFile] = File(...)):
             # Skip non-image files
             continue
     
+    # Calculate non-overlapping positions for all rooms
+    if rooms:
+        rooms = calculate_room_positions(rooms)
+    
     return JSONResponse(content=rooms)
 
 @app.get("/")
@@ -154,4 +187,4 @@ async def root():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000) 
+    uvicorn.run(app, host="0.0.0.0", port=8000)
