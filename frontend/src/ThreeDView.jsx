@@ -10,6 +10,8 @@ export default function ThreeDView({ rooms }) {
   const raycasterRef = useRef(new THREE.Raycaster());
   const mouseRef = useRef(new THREE.Vector2());
   const furnitureObjectsRef = useRef([]);
+  const wallsRef = useRef([]);
+  const cameraRef = useRef(null);
   
   const [selectedFurniture, setSelectedFurniture] = useState(null);
   const [hoveredFurniture, setHoveredFurniture] = useState(null);
@@ -26,6 +28,7 @@ export default function ThreeDView({ rooms }) {
     sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 5000);
+    cameraRef.current = camera;
     
     // Calculate total scene bounds - ensure rooms don't overlap
     let totalWidth = 0;
@@ -100,8 +103,9 @@ export default function ThreeDView({ rooms }) {
     const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x888888, 0.5);
     scene.add(hemisphereLight);
 
-    // Store furniture objects
+    // Store furniture objects and walls
     const furnitureObjects = [];
+    const walls = [];
 
     // Create smooth, solid color materials (no textures = no noise)
 
@@ -110,22 +114,26 @@ export default function ThreeDView({ rooms }) {
       color: 0xf5f5dc, // Cream color
       roughness: 0.9,
       metalness: 0.0,
-      side: THREE.FrontSide,
+      side: THREE.DoubleSide,
       flatShading: false, // Smooth shading
       polygonOffset: true,
       polygonOffsetFactor: 1,
-      polygonOffsetUnits: 1
+      polygonOffsetUnits: 1,
+      transparent: true,
+      opacity: 1.0
     });
 
     const brickWallMaterial = new THREE.MeshStandardMaterial({
       color: 0xb8734f, // Brick color
       roughness: 0.95,
       metalness: 0.0,
-      side: THREE.FrontSide,
+      side: THREE.DoubleSide,
       flatShading: false,
       polygonOffset: true,
       polygonOffsetFactor: 1,
-      polygonOffsetUnits: 1
+      polygonOffsetUnits: 1,
+      transparent: true,
+      opacity: 1.0
     });
 
     const floorMaterial = new THREE.MeshStandardMaterial({
@@ -181,6 +189,10 @@ export default function ThreeDView({ rooms }) {
       northWall.position.set(cx, wallHeight / 2, cz - roomDepth / 2);
       northWall.castShadow = true;
       northWall.receiveShadow = true;
+      // Normal points in -Z direction (north/front)
+      northWall.userData.normal = new THREE.Vector3(0, 0, -1);
+      northWall.userData.wallType = 'vertical';
+      walls.push(northWall);
       roomGroup.add(northWall);
 
       // SOUTH WALL (back, maximum Z) - plain wall (no doors)
@@ -189,6 +201,10 @@ export default function ThreeDView({ rooms }) {
       southWall.position.set(cx, wallHeight / 2, cz + roomDepth / 2);
       southWall.castShadow = true;
       southWall.receiveShadow = true;
+      // Normal points in +Z direction (south/back)
+      southWall.userData.normal = new THREE.Vector3(0, 0, 1);
+      southWall.userData.wallType = 'vertical';
+      walls.push(southWall);
       roomGroup.add(southWall);
 
       // EAST WALL (right side, maximum X) - plain wall (no windows)
@@ -197,6 +213,10 @@ export default function ThreeDView({ rooms }) {
       eastWall.position.set(cx + roomWidth / 2, wallHeight / 2, cz);
       eastWall.castShadow = true;
       eastWall.receiveShadow = true;
+      // Normal points in +X direction (east/right)
+      eastWall.userData.normal = new THREE.Vector3(1, 0, 0);
+      eastWall.userData.wallType = 'vertical';
+      walls.push(eastWall);
       roomGroup.add(eastWall);
 
       // WEST WALL (left side, minimum X)
@@ -208,11 +228,12 @@ export default function ThreeDView({ rooms }) {
         westWall.position.set(cx - roomWidth / 2, wallHeight / 2, cz);
         westWall.castShadow = true;
         westWall.receiveShadow = true;
+        // Normal points in -X direction (west/left)
+        westWall.userData.normal = new THREE.Vector3(-1, 0, 0);
+        westWall.userData.wallType = 'vertical';
+        walls.push(westWall);
         roomGroup.add(westWall);
       }
-
-
-      // Room label removed for plain wall
 
       scene.add(roomGroup);
 
@@ -310,6 +331,42 @@ export default function ThreeDView({ rooms }) {
     });
 
     furnitureObjectsRef.current = furnitureObjects;
+    wallsRef.current = walls;
+
+    // Function to update wall visibility based on camera angle
+    function updateWallVisibility() {
+      const cameraDirection = new THREE.Vector3();
+      camera.getWorldDirection(cameraDirection);
+
+      walls.forEach(wall => {
+        if (wall.userData.wallType === 'vertical') {
+          // Get the wall's position in world space
+          const wallWorldPos = new THREE.Vector3();
+          wall.getWorldPosition(wallWorldPos);
+
+          // Calculate direction from camera to wall
+          const toWall = new THREE.Vector3().subVectors(wallWorldPos, camera.position);
+          toWall.normalize();
+
+          // Get wall normal (already stored in userData)
+          const wallNormal = wall.userData.normal.clone();
+
+          // Calculate dot product between camera direction and wall normal
+          // If the wall is facing the camera (dot product < 0), hide it
+          const dot = toWall.dot(wallNormal);
+
+          // Hide walls that are between the camera and the room interior
+          // Threshold of -0.3 means walls at a slight angle are also hidden
+          if (dot < -0.1) {
+            wall.material.opacity = 0;
+            wall.visible = false;
+          } else {
+            wall.material.opacity = 1.0;
+            wall.visible = true;
+          }
+        }
+      });
+    }
 
     // Mouse interaction handlers
     const onMouseMove = (event) => {
@@ -391,6 +448,7 @@ export default function ThreeDView({ rooms }) {
     function animate() {
       requestAnimationFrame(animate);
       controls.update();
+      updateWallVisibility(); // Update wall visibility each frame
       renderer.render(scene, camera);
     }
     animate();
