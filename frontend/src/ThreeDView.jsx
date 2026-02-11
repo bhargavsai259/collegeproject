@@ -283,12 +283,7 @@ export default function ThreeDView({ rooms }) {
               isInteractive: true
             };
 
-            const bbox = new THREE.Box3().setFromObject(model);
-            const helper = new THREE.Box3Helper(bbox, 0x00ff00);
-            helper.visible = false;
-            helper.name = 'boundingBoxHelper';
-            scene.add(helper);
-            model.userData.boundingBoxHelper = helper;
+            // No bounding-box helper: removed green highlight
 
             furnitureObjects.push(model);
             scene.add(model);
@@ -382,32 +377,11 @@ export default function ThreeDView({ rooms }) {
         }
         
         if (object.userData.isInteractive) {
-          if (selectedFurniture) {
-            const prevObj = furnitureObjects.find(
-              obj => obj.userData.roomIndex === selectedFurniture.roomIndex &&
-                    obj.userData.itemIndex === selectedFurniture.itemIndex
-            );
-            if (prevObj?.userData.boundingBoxHelper) {
-              prevObj.userData.boundingBoxHelper.visible = false;
-            }
-          }
-
+          // Select the object (no bounding-box helper toggling)
           setSelectedFurniture(object.userData);
-          
-          if (object.userData.boundingBoxHelper) {
-            object.userData.boundingBoxHelper.visible = true;
-          }
         }
       } else {
-        if (selectedFurniture) {
-          const obj = furnitureObjects.find(
-            obj => obj.userData.roomIndex === selectedFurniture.roomIndex &&
-                  obj.userData.itemIndex === selectedFurniture.itemIndex
-          );
-          if (obj?.userData.boundingBoxHelper) {
-            obj.userData.boundingBoxHelper.visible = false;
-          }
-        }
+        // Clicked empty space: deselect (no helper to hide)
         setSelectedFurniture(null);
       }
     };
