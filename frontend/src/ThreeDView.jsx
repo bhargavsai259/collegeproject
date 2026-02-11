@@ -252,19 +252,37 @@ export default function ThreeDView({ rooms }) {
             const model = gltf.scene;
             model.scale.multiplyScalar(25);
 
-            const adjustedX = Math.min(
-              Math.max(item.position[0], -roomWidth / 2 + 15),
-              roomWidth / 2 - 15
-            );
-            const adjustedZ = Math.min(
-              Math.max(item.position[1], -roomDepth / 2 + 15),
-              roomDepth / 2 - 15
-            );
+            // Compute bounding box and clamp the model so it stays within room interior
+            const bbox = new THREE.Box3().setFromObject(model);
+            const size = bbox.getSize(new THREE.Vector3());
+
+            const halfRoomW = roomWidth / 2;
+            const halfRoomD = roomDepth / 2;
+            const margin = 2; // safety margin to avoid touching walls
+
+            // Available placement range for the model center relative to room center
+            const maxX = halfRoomW - wallThickness - size.x / 2 - margin;
+            const minX = -halfRoomW + wallThickness + size.x / 2 + margin;
+            const maxZ = halfRoomD - wallThickness - size.z / 2 - margin;
+            const minZ = -halfRoomD + wallThickness + size.z / 2 + margin;
+
+            let placedX = item.position[0];
+            let placedZ = item.position[1];
+
+            if (minX <= maxX) placedX = Math.min(Math.max(placedX, minX), maxX);
+            else placedX = 0; // model too wide — center it
+
+            if (minZ <= maxZ) placedZ = Math.min(Math.max(placedZ, minZ), maxZ);
+            else placedZ = 0; // model too deep — center it
+
+            // Position Y so the model rests on top of the floor (floor top at y=2)
+            const floorTopY = 2;
+            const yPos = size.y / 2 + floorTopY;
 
             model.position.set(
-              adjustedX + cx,
-              2,
-              adjustedZ + cz
+              placedX + cx,
+              yPos,
+              placedZ + cz
             );
 
             model.traverse((child) => {
