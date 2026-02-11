@@ -277,8 +277,10 @@ export default function ThreeDView({ rooms }) {
             else placedZ = 0; // model too deep — center it
 
             // Position Y so the model rests on top of the floor (floor top at y=2)
+            // Align the model's lowest point (bbox.min.y) to the floor top to
+            // handle models whose pivot/origin isn't at the base.
             const floorTopY = 2;
-            const yPos = size.y / 2 + floorTopY;
+            const yPos = floorTopY - bbox.min.y;
 
             // Collision-avoidance with previously placed furniture
             const testBBoxAt = (xRel, zRel) => {
