@@ -27,30 +27,41 @@ export default function ThreeDView({ rooms }) {
 
     const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 5000);
     
-    // Calculate total scene bounds
-    let minX = Infinity, maxX = -Infinity;
-    let minZ = Infinity, maxZ = -Infinity;
+    // Calculate total scene bounds - ensure rooms don't overlap
+    let totalWidth = 0;
+    let maxDepth = 0;
     
-    rooms.forEach(room => {
-      const halfBreadth = room.dimensions.breadth / 2;
-      const halfLength = room.dimensions.length / 2;
-      minX = Math.min(minX, room.position[0] - halfBreadth);
-      maxX = Math.max(maxX, room.position[0] + halfBreadth);
-      minZ = Math.min(minZ, room.position[1] - halfLength);
-      maxZ = Math.max(maxZ, room.position[1] + halfLength);
+    // Calculate layout - rooms side by side
+    const roomPositions = [];
+    let currentX = 0;
+    
+    rooms.forEach((room, index) => {
+      const roomWidth = room.dimensions.breadth;
+      const roomDepth = room.dimensions.length;
+      
+      // Position rooms side by side (no overlap)
+      roomPositions.push({
+        x: currentX + roomWidth / 2,
+        z: roomDepth / 2
+      });
+      
+      currentX += roomWidth; // Move to next room position
+      totalWidth += roomWidth;
+      maxDepth = Math.max(maxDepth, roomDepth);
     });
     
-    const centerX = (minX + maxX) / 2;
-    const centerZ = (minZ + maxZ) / 2;
-    const sceneWidth = maxX - minX;
-    const sceneDepth = maxZ - minZ;
-    const maxDimension = Math.max(sceneWidth, sceneDepth);
+    const centerX = totalWidth / 2;
+    const centerZ = maxDepth / 2;
+    const maxDimension = Math.max(totalWidth, maxDepth);
     
-    const cameraDistance = maxDimension * 1.5;
+    const cameraDistance = maxDimension * 1.2;
     camera.position.set(centerX - cameraDistance * 0.7, cameraDistance * 0.6, centerZ + cameraDistance * 0.7);
-    camera.lookAt(centerX, 0, centerZ);
+    camera.lookAt(centerX, 30, centerZ);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const renderer = new THREE.WebGLRenderer({ 
+      antialias: true,
+      powerPreference: "high-performance"
+    });
     renderer.setClearColor(0xf5f5f5, 1);
     renderer.setSize(width, height);
     renderer.shadowMap.enabled = true;
@@ -65,25 +76,23 @@ export default function ThreeDView({ rooms }) {
     controls.minDistance = 50;
     controls.maxDistance = maxDimension * 3;
     controls.target.set(centerX, 30, centerZ);
-    controls.maxPolarAngle = Math.PI / 2.1; // Prevent going below floor
+    controls.maxPolarAngle = Math.PI / 2.1;
 
-    // Lighting - improved for better visibility
+    // Lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
     scene.add(ambientLight);
 
-    // Main directional light
     const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
     dirLight.position.set(centerX + 500, 500, centerZ + 500);
     dirLight.castShadow = true;
-    dirLight.shadow.camera.left = -maxDimension;
-    dirLight.shadow.camera.right = maxDimension;
-    dirLight.shadow.camera.top = maxDimension;
-    dirLight.shadow.camera.bottom = -maxDimension;
+    dirLight.shadow.camera.left = -totalWidth;
+    dirLight.shadow.camera.right = totalWidth;
+    dirLight.shadow.camera.top = maxDepth;
+    dirLight.shadow.camera.bottom = -maxDepth;
     dirLight.shadow.mapSize.width = 2048;
     dirLight.shadow.mapSize.height = 2048;
     scene.add(dirLight);
 
-    // Secondary fill light
     const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
     fillLight.position.set(centerX - 300, 300, centerZ - 300);
     scene.add(fillLight);
@@ -94,24 +103,53 @@ export default function ThreeDView({ rooms }) {
     // Store furniture objects
     const furnitureObjects = [];
 
-    // Wall material - single sided, visible only from outside
-    const createWallMaterial = (color, isBrick = false) => {
-      return new THREE.MeshStandardMaterial({
-        color: color,
-        roughness: isBrick ? 0.9 : 0.8,
-        metalness: 0.1,
-        side: THREE.FrontSide // Only render front face (outside)
-      });
-    };
+    // Create smooth, solid color materials (no textures = no noise)
 
-    // Floor material
-    const floorMaterial = new THREE.MeshStandardMaterial({
-      color: 0xd4a574, // Warmer wood tone
-      roughness: 0.8,
-      metalness: 0.1
+    // Wall materials with polygonOffset to prevent z-fighting
+    const wallMaterial = new THREE.MeshStandardMaterial({
+      color: 0xf5f5dc, // Cream color
+      roughness: 0.9,
+      metalness: 0.0,
+      side: THREE.FrontSide,
+      flatShading: false, // Smooth shading
+      polygonOffset: true,
+      polygonOffsetFactor: 1,
+      polygonOffsetUnits: 1
     });
 
-    // Add rooms with proper walls
+    const brickWallMaterial = new THREE.MeshStandardMaterial({
+      color: 0xb8734f, // Brick color
+      roughness: 0.95,
+      metalness: 0.0,
+      side: THREE.FrontSide,
+      flatShading: false,
+      polygonOffset: true,
+      polygonOffsetFactor: 1,
+      polygonOffsetUnits: 1
+    });
+
+    const floorMaterial = new THREE.MeshStandardMaterial({
+      color: 0xd4a574, // Wood color
+      roughness: 0.85,
+      metalness: 0.0,
+      flatShading: false
+    });
+
+    const doorFrameMaterial = new THREE.MeshStandardMaterial({
+      color: 0x654321, // Dark wood
+      roughness: 0.8,
+      metalness: 0.0,
+      side: THREE.DoubleSide
+    });
+
+    const windowFrameMaterial = new THREE.MeshStandardMaterial({
+      color: 0xffffff, // White
+      roughness: 0.6,
+      metalness: 0.0,
+      side: THREE.DoubleSide
+    });
+
+    // Add rooms with proper walls - NO OVERLAP
     rooms.forEach((room, roomIndex) => {
       const roomGroup = new THREE.Group();
       roomGroup.name = `room-${roomIndex}`;
@@ -121,11 +159,11 @@ export default function ThreeDView({ rooms }) {
       const wallHeight = 80;
       const wallThickness = 5;
 
-      // Room center position
-      const cx = room.position[0];
-      const cz = room.position[1];
+      // Use calculated position (rooms side by side)
+      const cx = roomPositions[roomIndex].x;
+      const cz = roomPositions[roomIndex].z;
 
-      // Create room floor
+      // Create room floor - smooth, no texture
       const floorGeom = new THREE.BoxGeometry(roomWidth, 2, roomDepth);
       const roomFloor = new THREE.Mesh(floorGeom, floorMaterial);
       roomFloor.position.set(cx, 1, cz);
@@ -133,180 +171,48 @@ export default function ThreeDView({ rooms }) {
       roomFloor.castShadow = false;
       roomGroup.add(roomFloor);
 
-      // Determine wall colors - alternate between cream and brick
-      const wallColor = 0xf5f5dc; // Cream
-      const brickColor = 0xb8734f; // Brick
+      // Wall material for this room
       const useBrick = roomIndex % 2 === 1;
+      const currentWallMat = useBrick ? brickWallMaterial : wallMaterial;
 
-      // Wall dimensions for each side
-      const walls = [];
-
-      // NORTH WALL (front, -Z side)
+      // NORTH WALL (front, minimum Z)
       const northGeom = new THREE.BoxGeometry(roomWidth, wallHeight, wallThickness);
-      const northWall = new THREE.Mesh(northGeom, createWallMaterial(wallColor));
+      const northWall = new THREE.Mesh(northGeom, wallMaterial.clone());
       northWall.position.set(cx, wallHeight / 2, cz - roomDepth / 2);
       northWall.castShadow = true;
       northWall.receiveShadow = true;
-      walls.push(northWall);
+      roomGroup.add(northWall);
 
-      // SOUTH WALL (back, +Z side) - with door if not last room
-      const hasDoor = roomIndex < rooms.length - 1;
-      
-      if (hasDoor) {
-        // Create wall segments around door
-        const doorWidth = 35;
-        const doorHeight = 65;
-        const doorX = 0; // Center of wall
-        
-        // Left segment
-        const leftWidth = (roomWidth - doorWidth) / 2 - 2;
-        if (leftWidth > 0) {
-          const leftGeom = new THREE.BoxGeometry(leftWidth, wallHeight, wallThickness);
-          const leftWall = new THREE.Mesh(leftGeom, createWallMaterial(wallColor));
-          leftWall.position.set(cx - roomWidth / 2 + leftWidth / 2, wallHeight / 2, cz + roomDepth / 2);
-          leftWall.castShadow = true;
-          leftWall.receiveShadow = true;
-          walls.push(leftWall);
-        }
-        
-        // Right segment
-        const rightWidth = (roomWidth - doorWidth) / 2 - 2;
-        if (rightWidth > 0) {
-          const rightGeom = new THREE.BoxGeometry(rightWidth, wallHeight, wallThickness);
-          const rightWall = new THREE.Mesh(rightGeom, createWallMaterial(wallColor));
-          rightWall.position.set(cx + roomWidth / 2 - rightWidth / 2, wallHeight / 2, cz + roomDepth / 2);
-          rightWall.castShadow = true;
-          rightWall.receiveShadow = true;
-          walls.push(rightWall);
-        }
-        
-        // Top segment above door
-        const topGeom = new THREE.BoxGeometry(doorWidth, wallHeight - doorHeight, wallThickness);
-        const topWall = new THREE.Mesh(topGeom, createWallMaterial(wallColor));
-        topWall.position.set(cx + doorX, doorHeight + (wallHeight - doorHeight) / 2, cz + roomDepth / 2);
-        topWall.castShadow = true;
-        topWall.receiveShadow = true;
-        walls.push(topWall);
-        
-        // Door frame
-        const frameGeom = new THREE.BoxGeometry(doorWidth + 4, doorHeight + 4, wallThickness + 2);
-        const frameMat = new THREE.MeshStandardMaterial({ color: 0x654321, side: THREE.DoubleSide });
-        const doorFrame = new THREE.Mesh(frameGeom, frameMat);
-        doorFrame.position.set(cx + doorX, doorHeight / 2, cz + roomDepth / 2);
-        walls.push(doorFrame);
-        
-      } else {
-        // Solid south wall
-        const southGeom = new THREE.BoxGeometry(roomWidth, wallHeight, wallThickness);
-        const southWall = new THREE.Mesh(southGeom, createWallMaterial(wallColor));
-        southWall.position.set(cx, wallHeight / 2, cz + roomDepth / 2);
-        southWall.castShadow = true;
-        southWall.receiveShadow = true;
-        walls.push(southWall);
+      // SOUTH WALL (back, maximum Z) - plain wall (no doors)
+      const southGeom = new THREE.BoxGeometry(roomWidth, wallHeight, wallThickness);
+      const southWall = new THREE.Mesh(southGeom, wallMaterial.clone());
+      southWall.position.set(cx, wallHeight / 2, cz + roomDepth / 2);
+      southWall.castShadow = true;
+      southWall.receiveShadow = true;
+      roomGroup.add(southWall);
+
+      // EAST WALL (right side, maximum X) - plain wall (no windows)
+      const eastGeom = new THREE.BoxGeometry(wallThickness, wallHeight, roomDepth);
+      const eastWall = new THREE.Mesh(eastGeom, currentWallMat.clone());
+      eastWall.position.set(cx + roomWidth / 2, wallHeight / 2, cz);
+      eastWall.castShadow = true;
+      eastWall.receiveShadow = true;
+      roomGroup.add(eastWall);
+
+      // WEST WALL (left side, minimum X)
+      // First room: solid wall
+      // Other rooms: shared with previous room (no wall needed)
+      if (roomIndex === 0) {
+        const westGeom = new THREE.BoxGeometry(wallThickness, wallHeight, roomDepth);
+        const westWall = new THREE.Mesh(westGeom, wallMaterial.clone());
+        westWall.position.set(cx - roomWidth / 2, wallHeight / 2, cz);
+        westWall.castShadow = true;
+        westWall.receiveShadow = true;
+        roomGroup.add(westWall);
       }
 
-      // EAST WALL (right, +X side) - with window
-      const hasWindow = true;
-      
-      if (hasWindow) {
-        const windowWidth = 45;
-        const windowHeight = 35;
-        const windowY = 45; // Height from floor
-        
-        // Bottom segment
-        const bottomGeom = new THREE.BoxGeometry(wallThickness, windowY - 2, roomDepth);
-        const bottomWall = new THREE.Mesh(bottomGeom, createWallMaterial(useBrick ? brickColor : wallColor, useBrick));
-        bottomWall.position.set(cx + roomWidth / 2, (windowY - 2) / 2, cz);
-        bottomWall.castShadow = true;
-        bottomWall.receiveShadow = true;
-        walls.push(bottomWall);
-        
-        // Top segment
-        const topHeight = wallHeight - windowY - windowHeight - 2;
-        const topGeom = new THREE.BoxGeometry(wallThickness, topHeight, roomDepth);
-        const topWall = new THREE.Mesh(topGeom, createWallMaterial(useBrick ? brickColor : wallColor, useBrick));
-        topWall.position.set(cx + roomWidth / 2, windowY + windowHeight + topHeight / 2, cz);
-        topWall.castShadow = true;
-        topWall.receiveShadow = true;
-        walls.push(topWall);
-        
-        // Left side of window
-        const leftDepth = (roomDepth - windowWidth) / 2;
-        const leftGeom = new THREE.BoxGeometry(wallThickness, windowHeight, leftDepth);
-        const leftWall = new THREE.Mesh(leftGeom, createWallMaterial(useBrick ? brickColor : wallColor, useBrick));
-        leftWall.position.set(cx + roomWidth / 2, windowY + windowHeight / 2, cz - roomDepth / 2 + leftDepth / 2);
-        leftWall.castShadow = true;
-        leftWall.receiveShadow = true;
-        walls.push(leftWall);
-        
-        // Right side of window
-        const rightDepth = (roomDepth - windowWidth) / 2;
-        const rightGeom = new THREE.BoxGeometry(wallThickness, windowHeight, rightDepth);
-        const rightWall = new THREE.Mesh(rightGeom, createWallMaterial(useBrick ? brickColor : wallColor, useBrick));
-        rightWall.position.set(cx + roomWidth / 2, windowY + windowHeight / 2, cz + roomDepth / 2 - rightDepth / 2);
-        rightWall.castShadow = true;
-        rightWall.receiveShadow = true;
-        walls.push(rightWall);
-        
-        // Window frame
-        const frameGeom = new THREE.BoxGeometry(wallThickness + 4, windowHeight + 4, windowWidth + 4);
-        const frameMat = new THREE.MeshStandardMaterial({ color: 0xffffff, side: THREE.DoubleSide });
-        const windowFrame = new THREE.Mesh(frameGeom, frameMat);
-        windowFrame.position.set(cx + roomWidth / 2, windowY + windowHeight / 2, cz);
-        walls.push(windowFrame);
-        
-        // Window glass
-        const glassGeom = new THREE.BoxGeometry(1, windowHeight, windowWidth);
-        const glassMat = new THREE.MeshPhysicalMaterial({
-          color: 0x88ccff,
-          transparent: true,
-          opacity: 0.25,
-          transmission: 0.9,
-          roughness: 0.1,
-          metalness: 0.0,
-          side: THREE.DoubleSide
-        });
-        const windowGlass = new THREE.Mesh(glassGeom, glassMat);
-        windowGlass.position.set(cx + roomWidth / 2, windowY + windowHeight / 2, cz);
-        walls.push(windowGlass);
-        
-      } else {
-        // Solid east wall
-        const eastGeom = new THREE.BoxGeometry(wallThickness, wallHeight, roomDepth);
-        const eastWall = new THREE.Mesh(eastGeom, createWallMaterial(useBrick ? brickColor : wallColor, useBrick));
-        eastWall.position.set(cx + roomWidth / 2, wallHeight / 2, cz);
-        eastWall.castShadow = true;
-        eastWall.receiveShadow = true;
-        walls.push(eastWall);
-      }
 
-      // WEST WALL (left, -X side)
-      const westGeom = new THREE.BoxGeometry(wallThickness, wallHeight, roomDepth);
-      const westWall = new THREE.Mesh(westGeom, createWallMaterial(wallColor));
-      westWall.position.set(cx - roomWidth / 2, wallHeight / 2, cz);
-      westWall.castShadow = true;
-      westWall.receiveShadow = true;
-      walls.push(westWall);
-
-      // Add all walls to room group
-      walls.forEach(wall => roomGroup.add(wall));
-
-      // Add room label (floating text)
-      const canvas = document.createElement('canvas');
-      const context = canvas.getContext('2d');
-      canvas.width = 512;
-      canvas.height = 128;
-      context.fillStyle = '#333333';
-      context.font = 'bold 48px Arial';
-      context.textAlign = 'center';
-      context.fillText(`${room.roomtype} ${room.roomno}`, 256, 64);
-      
-      const texture = new THREE.CanvasTexture(canvas);
-      const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
-      const sprite = new THREE.Sprite(spriteMaterial);
-      sprite.scale.set(80, 20, 1);
-      sprite.position.set(cx, wallHeight + 15, cz);
-      roomGroup.add(sprite);
+      // Room label removed for plain wall
 
       scene.add(roomGroup);
 
@@ -354,7 +260,6 @@ export default function ThreeDView({ rooms }) {
             const model = gltf.scene;
             model.scale.set(10, 10, 10);
 
-            // Clamp furniture position within room bounds
             const adjustedX = Math.min(
               Math.max(item.position[0], -roomWidth / 2 + 15),
               roomWidth / 2 - 15
@@ -366,7 +271,7 @@ export default function ThreeDView({ rooms }) {
 
             model.position.set(
               adjustedX + cx,
-              2, // Place on floor
+              2,
               adjustedZ + cz
             );
 
@@ -509,7 +414,6 @@ export default function ThreeDView({ rooms }) {
         }} 
       />
       
-      {/* Minimal hover tooltip */}
       {hoveredFurniture && (
         <div style={{
           position: 'absolute',
@@ -530,7 +434,6 @@ export default function ThreeDView({ rooms }) {
         </div>
       )}
 
-      {/* Selected furniture info - minimal */}
       {selectedFurniture && (
         <div style={{
           position: 'absolute',
@@ -567,7 +470,6 @@ export default function ThreeDView({ rooms }) {
         </div>
       )}
 
-      {/* Simple instructions */}
       <div style={{
         position: 'absolute',
         bottom: '20px',
