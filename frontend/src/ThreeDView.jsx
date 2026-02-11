@@ -11,6 +11,9 @@ export default function ThreeDView({ rooms }) {
   const mouseRef = useRef(new THREE.Vector2());
   const furnitureObjectsRef = useRef([]);
   const wallsRef = useRef([]);
+  const isDraggingRef = useRef(false);
+  const dragSelectedRef = useRef(null);
+  const dragOffsetRef = useRef(new THREE.Vector3());
   const cameraRef = useRef(null);
   
   const [selectedFurniture, setSelectedFurniture] = useState(null);
@@ -107,6 +110,7 @@ export default function ThreeDView({ rooms }) {
     const furnitureObjects = [];
     const walls = [];
     const placedBBoxes = [];
+    const FLOOR_TOP = 2;
 
     // Use a single shared color for all scene materials
     const singleColor = 0xcccccc;
@@ -276,18 +280,18 @@ export default function ThreeDView({ rooms }) {
             if (minZ <= maxZ) placedZ = Math.min(Math.max(placedZ, minZ), maxZ);
             else placedZ = 0; // model too deep — center it
 
-            // Position Y so the model rests on top of the floor (floor top at y=2)
+            // Position Y so the model rests on top of the floor
             // Align the model's lowest point (bbox.min.y) to the floor top to
             // handle models whose pivot/origin isn't at the base.
-            const floorTopY = 2;
-            const yPos = floorTopY - bbox.min.y;
+            const yPos = FLOOR_TOP - bbox.min.y;
 
             // Collision-avoidance with previously placed furniture
-            const testBBoxAt = (xRel, zRel) => {
+            const testBBoxAt = (xRel, zRel, ignoreModel = null) => {
               model.position.set(xRel + cx, yPos, zRel + cz);
               const b = new THREE.Box3().setFromObject(model);
               for (const other of placedBBoxes) {
-                if (b.intersectsBox(other)) return true;
+                if (ignoreModel && other.model === ignoreModel) continue;
+                if (b.intersectsBox(other.bbox)) return true;
               }
               return false;
             };
@@ -324,7 +328,7 @@ export default function ThreeDView({ rooms }) {
 
             // Record bbox of placed model to avoid future intersections
             const finalBBox = new THREE.Box3().setFromObject(model);
-            placedBBoxes.push(finalBBox);
+            placedBBoxes.push({ model, bbox: finalBBox });
 
             model.traverse((child) => {
               if (child.isMesh) {
@@ -393,11 +397,70 @@ export default function ThreeDView({ rooms }) {
       });
     }
 
-    // Mouse interaction handlers
+    // Mouse / pointer interaction handlers
     const onMouseMove = (event) => {
       const rect = renderer.domElement.getBoundingClientRect();
       mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+      // If dragging, handle movement on the floor plane
+      if (isDraggingRef.current && dragSelectedRef.current) {
+        raycasterRef.current.setFromCamera(mouseRef.current, camera);
+        const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -FLOOR_TOP);
+        const intersectPoint = new THREE.Vector3();
+        if (raycasterRef.current.ray.intersectPlane(plane, intersectPoint)) {
+          const model = dragSelectedRef.current;
+          const desiredWorld = intersectPoint.clone().sub(dragOffsetRef.current);
+
+          const roomIdx = model.userData.roomIndex;
+          const cx = roomPositions[roomIdx].x;
+          const cz = roomPositions[roomIdx].z;
+          const roomWidth = rooms[roomIdx].dimensions.breadth;
+          const roomDepth = rooms[roomIdx].dimensions.length;
+
+          const bbox = new THREE.Box3().setFromObject(model);
+          const size = bbox.getSize(new THREE.Vector3());
+
+          const halfRoomW = roomWidth / 2;
+          const halfRoomD = roomDepth / 2;
+          const wallThickness = 5;
+          const margin = 2;
+
+          const maxX = halfRoomW - wallThickness - size.x / 2 - margin;
+          const minX = -halfRoomW + wallThickness + size.x / 2 + margin;
+          const maxZ = halfRoomD - wallThickness - size.z / 2 - margin;
+          const minZ = -halfRoomD + wallThickness + size.z / 2 + margin;
+
+          let relX = desiredWorld.x - cx;
+          let relZ = desiredWorld.z - cz;
+          if (minX <= maxX) relX = Math.min(Math.max(relX, minX), maxX);
+          else relX = 0;
+          if (minZ <= maxZ) relZ = Math.min(Math.max(relZ, minZ), maxZ);
+          else relZ = 0;
+
+          const origPos = model.position.clone();
+          const newY = FLOOR_TOP - bbox.min.y;
+          model.position.set(relX + cx, newY, relZ + cz);
+          const newBB = new THREE.Box3().setFromObject(model);
+          let collided = false;
+          for (const other of placedBBoxes) {
+            if (other.model === model) continue;
+            if (newBB.intersectsBox(other.bbox)) {
+              collided = true;
+              break;
+            }
+          }
+          if (!collided) {
+            const entry = placedBBoxes.find(e => e.model === model);
+            if (entry) entry.bbox.copy(newBB);
+          } else {
+            model.position.copy(origPos);
+          }
+
+          renderer.domElement.style.cursor = 'grabbing';
+          return; // skip hover logic while dragging
+        }
+      }
 
       raycasterRef.current.setFromCamera(mouseRef.current, camera);
       const intersects = raycasterRef.current.intersectObjects(furnitureObjects, true);
@@ -419,6 +482,50 @@ export default function ThreeDView({ rooms }) {
         setHoveredFurniture(null);
         renderer.domElement.style.cursor = 'default';
       }
+    };
+
+    const onPointerDown = (event) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycasterRef.current.setFromCamera(mouseRef.current, camera);
+      const intersects = raycasterRef.current.intersectObjects(furnitureObjects, true);
+      if (intersects.length > 0) {
+        let object = intersects[0].object;
+        while (object.parent && !object.userData.isInteractive) {
+          object = object.parent;
+        }
+        if (object.userData.isInteractive) {
+          // start dragging
+          dragSelectedRef.current = object;
+          setSelectedFurniture(object.userData);
+          isDraggingRef.current = true;
+          // compute pointer vs model offset on floor plane
+          const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -FLOOR_TOP);
+          const intersectPoint = new THREE.Vector3();
+          if (raycasterRef.current.ray.intersectPlane(plane, intersectPoint)) {
+            dragOffsetRef.current.copy(intersectPoint).sub(object.position);
+          } else {
+            dragOffsetRef.current.set(0, 0, 0);
+          }
+          // remove its bbox from placedBBoxes so it doesn't collide with itself
+          const idx = placedBBoxes.findIndex(e => e.model === object);
+          if (idx >= 0) placedBBoxes.splice(idx, 1);
+          controls.enabled = false;
+        }
+      }
+    };
+
+    const onPointerUp = (event) => {
+      if (isDraggingRef.current && dragSelectedRef.current) {
+        const model = dragSelectedRef.current;
+        const finalBB = new THREE.Box3().setFromObject(model);
+        placedBBoxes.push({ model, bbox: finalBB });
+      }
+      isDraggingRef.current = false;
+      dragSelectedRef.current = null;
+      controls.enabled = true;
+      renderer.domElement.style.cursor = 'default';
     };
 
     const onClick = (event) => {
@@ -446,6 +553,8 @@ export default function ThreeDView({ rooms }) {
     };
 
     renderer.domElement.addEventListener('mousemove', onMouseMove);
+    renderer.domElement.addEventListener('pointerdown', onPointerDown);
+    renderer.domElement.addEventListener('pointerup', onPointerUp);
     renderer.domElement.addEventListener('click', onClick);
 
     // Animation loop
@@ -460,6 +569,8 @@ export default function ThreeDView({ rooms }) {
     // Cleanup
     return () => {
       renderer.domElement.removeEventListener('mousemove', onMouseMove);
+      renderer.domElement.removeEventListener('pointerdown', onPointerDown);
+      renderer.domElement.removeEventListener('pointerup', onPointerUp);
       renderer.domElement.removeEventListener('click', onClick);
       mount.removeChild(renderer.domElement);
     };
