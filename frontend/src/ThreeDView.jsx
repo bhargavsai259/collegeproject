@@ -258,7 +258,7 @@ export default function ThreeDView({ rooms }) {
           modelPath,
           (gltf) => {
             const model = gltf.scene;
-            model.scale.set(10, 10, 10);
+            model.scale.multiplyScalar(25);
 
             const adjustedX = Math.min(
               Math.max(item.position[0], -roomWidth / 2 + 15),

@@ -2,6 +2,7 @@
   "models": [
     { "name": "coffee_table", "path": "@assets/living/coffee_table.glb" },
     { "name": "sofa", "path": "@assets/living/sofa.glb" },
+    { "name": "couch", "path": "@assets/living/couch.glb" },
     { "name": "tablelamp", "path": "@assets/living/tablelamp.glb" },
     { "name": "teapoy", "path": "@assets/living/teapoy.glb" },
     { "name": "woodendesk", "path": "@assets/office/woodendesk.glb" },
