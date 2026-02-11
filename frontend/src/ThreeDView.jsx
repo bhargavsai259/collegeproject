@@ -179,9 +179,39 @@
           const modelData = assets.models.find(
             model => model?.name?.toLowerCase() === item?.type?.toLowerCase()
           );
-          const modelPath = modelData 
-            ? modelData.path.replace('@assets', '/src/assets')
-            : '/src/assets/living/coffee_table.glb';
+          let modelPath;
+          if (modelData) {
+            modelPath = modelData.path.replace('@assets', '/src/assets');
+          } else {
+            // Try to find a model with a common substring
+            const itemType = item?.type?.toLowerCase() || '';
+            let bestMatch = null;
+            let bestScore = 0;
+            for (const model of assets.models) {
+              const modelName = model?.name?.toLowerCase() || '';
+              // Simple substring match score
+              let score = 0;
+              if (modelName && itemType) {
+                for (let i = 0; i < itemType.length; i++) {
+                  for (let j = i + 1; j <= itemType.length; j++) {
+                    const substr = itemType.substring(i, j);
+                    if (substr.length > 2 && modelName.includes(substr)) {
+                      score = Math.max(score, substr.length);
+                    }
+                  }
+                }
+              }
+              if (score > bestScore) {
+                bestScore = score;
+                bestMatch = model;
+              }
+            }
+            if (bestMatch) {
+              modelPath = bestMatch.path.replace('@assets', '/src/assets');
+            } else {
+              modelPath = assets.models[0].path.replace('@assets', '/src/assets');
+            }
+          }
 
           loader.load(
             modelPath,
