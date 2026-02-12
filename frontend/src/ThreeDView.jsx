@@ -5,6 +5,9 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import assets from './assets/assets.json';
 
 export default function ThreeDView({ rooms }) {
+  // For rotation mode
+  const isRotatingRef = useRef(false);
+  const lastMouseYRef = useRef(0);
   const mountRef = useRef(null);
   const sceneRef = useRef(null);
   const raycasterRef = useRef(new THREE.Raycaster());
@@ -399,6 +402,16 @@ export default function ThreeDView({ rooms }) {
 
     // Mouse / pointer interaction handlers
     const onMouseMove = (event) => {
+      // Handle rotation mode (Y axis only, horizontal drag)
+      if (isRotatingRef.current && dragSelectedRef.current) {
+        const model = dragSelectedRef.current;
+        const deltaX = event.clientX - lastMouseYRef.current;
+        lastMouseYRef.current = event.clientX;
+        const rotSpeed = 0.01;
+        model.rotation.y += deltaX * rotSpeed;
+        renderer.domElement.style.cursor = 'crosshair';
+        return;
+      }
       const rect = renderer.domElement.getBoundingClientRect();
       mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -485,6 +498,7 @@ export default function ThreeDView({ rooms }) {
     };
 
     const onPointerDown = (event) => {
+      if (isRotatingRef.current) return; // Prevent drag while rotating
       const rect = renderer.domElement.getBoundingClientRect();
       mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -517,6 +531,13 @@ export default function ThreeDView({ rooms }) {
     };
 
     const onPointerUp = (event) => {
+      if (isRotatingRef.current) {
+        isRotatingRef.current = false;
+        dragSelectedRef.current = null;
+        controls.enabled = true;
+        renderer.domElement.style.cursor = 'default';
+        return;
+      }
       if (isDraggingRef.current && dragSelectedRef.current) {
         const model = dragSelectedRef.current;
         const finalBB = new THREE.Box3().setFromObject(model);
@@ -526,6 +547,26 @@ export default function ThreeDView({ rooms }) {
       dragSelectedRef.current = null;
       controls.enabled = true;
       renderer.domElement.style.cursor = 'default';
+    };
+    // Double-click handler to activate rotation mode
+    const onDoubleClick = (event) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycasterRef.current.setFromCamera(mouseRef.current, camera);
+      const intersects = raycasterRef.current.intersectObjects(furnitureObjects, true);
+      if (intersects.length > 0) {
+        let object = intersects[0].object;
+        while (object.parent && !object.userData.isInteractive) {
+          object = object.parent;
+        }
+        if (object.userData.isInteractive) {
+          dragSelectedRef.current = object;
+          isRotatingRef.current = true;
+          lastMouseYRef.current = event.clientX;
+          controls.enabled = false;
+        }
+      }
     };
 
     const onClick = (event) => {
@@ -556,6 +597,7 @@ export default function ThreeDView({ rooms }) {
     renderer.domElement.addEventListener('pointerdown', onPointerDown);
     renderer.domElement.addEventListener('pointerup', onPointerUp);
     renderer.domElement.addEventListener('click', onClick);
+    renderer.domElement.addEventListener('dblclick', onDoubleClick);
 
     // Animation loop
     function animate() {
@@ -572,6 +614,7 @@ export default function ThreeDView({ rooms }) {
       renderer.domElement.removeEventListener('pointerdown', onPointerDown);
       renderer.domElement.removeEventListener('pointerup', onPointerUp);
       renderer.domElement.removeEventListener('click', onClick);
+      renderer.domElement.removeEventListener('dblclick', onDoubleClick);
       mount.removeChild(renderer.domElement);
     };
   }, [rooms]);
@@ -656,7 +699,7 @@ export default function ThreeDView({ rooms }) {
         lineHeight: '1.6'
       }}>
         <strong style={{ color: '#333', display: 'block', marginBottom: '4px' }}>Controls:</strong>
-        Drag to rotate • Scroll to zoom • Right-click to pan
+        Drag to move • Double-click to rotate (X axis) • Scroll to zoom • Right-click to pan
       </div>
     </div>
   );
